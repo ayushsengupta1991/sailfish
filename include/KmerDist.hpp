@@ -43,45 +43,96 @@ public:
 		for (size_t i = 0; i < counts.size(); ++i) { counts[i] = 1; }
 	}
 	
-	inline uint32_t indexForKmer(const char* s) {
+	inline uint32_t indexForKmer(const char* s, bool reverseComplement) {
 		// The index we'll return
 		uint32_t idx{0};
 		// The number of bits we need to shift the
 		// current mask to the left.
 		uint32_t pos{0};
-		for (size_t i = 0; i < K; ++i) {
-			char c = s[i];
-			switch (c) {
-				case 'A':
-				case 'a':
-					// don't need to do anything; or'ing with 0
-					break;
-				case 'C':
-				case 'c':
-					idx |= (0x1 << pos);
-					break;
-				case 'G':
-				case 'g':
-					idx |= (0x2 << pos);
-					break;
-				case 'T':
-				case 't':
-				case 'U':
-				case 'u':
-					idx |= (0x3 << pos);
-					break;
-				default:
-					// treat anything else (e.g. an 'N' as an 'A')
-					break;
+		if(!reverseComplement)
+		{
+			for (size_t i = 0; i < K; ++i) {
+				char c = s[i];
+				switch (c) {
+					case 'A':
+					case 'a':
+						// don't need to do anything; or'ing with 0
+						break;
+					case 'C':
+					case 'c':
+						idx |= (0x1 << pos);
+						break;
+					case 'G':
+					case 'g':
+						idx |= (0x2 << pos);
+						break;
+					case 'T':
+					case 't':
+					case 'U':
+					case 'u':
+						idx |= (0x3 << pos);
+						break;
+					default:
+						// treat anything else (e.g. an 'N' as an 'A')
+						break;
+				}
+				pos += 2;
 			}
-			pos += 2;
+		}
+		else
+		{
+			for(size_t i=K-1 ; i>=0 ; i--)
+			{
+				switch(s[i])
+				{
+					case 'T':
+					case 't': 
+					case 'u':
+					case 'U': break;
+					
+					case 'C':
+					case 'c': idx |= (0x2 << pos);
+						  break;
+					
+					case 'G':
+					case 'g': idx |= (0x1 << pos);
+						  break;
+					
+					case 'A': 
+					case 'a': idx |= (0x3 <<pos);
+						  break;
+					
+				}
+				pos+=2;
+			}
 		}
 		return idx;
 	}
 	
 	inline uint32_t nextKmerIndex(uint32_t idx, char next)
 	{
-		
+		idx = idx & (0x3FF);
+		idx = idx << 2;
+		switch(next)
+		{
+			case 'A':
+			case 'a': break;
+			
+			case 'C':
+			case 'c': idx = idx + 1;
+				  break;
+				  
+			case 'G': 
+			case 'g': idx = idx + 2;
+				  break;
+			case 'T':
+			case 't': 
+			case 'U':	
+			case 'u':
+				 idx = idx + 3;
+				 break;
+		}
+		return idx;
 	}
 	
 	inline std::string kmerForIndex(uint32_t idx) {
@@ -112,46 +163,16 @@ public:
 		return kmer;
 	}
 	
-	inline bool addKmer(const char* s, const char* end) {
+	inline bool addKmer(const char* s, const char* end, bool reverseComplement) {
 		// Make sure there are at least k bases left
 		if (std::distance(s, end) >= K) {
-			auto idx = indexForKmer(s);
+			auto idx = indexForKmer(s,reverseComplement);
 			counts[idx]++;
 		} else {
 			return false;
 		}
 	}
-	/*
-	 K merDist (const std::stri*ng base) : haveBias_(true) {
-	 auto dictName = base+".dict";
-	 auto binName = base+".bin";
-	 std::cerr << "reading bias dictionary ... ";
-	 using std::string;
-	 std::ifstream din(dictName, std::ios::in);
-	 size_t numBiasTerms;
-	 din >> numBiasTerms;
-	 string tname;
-	 Offset length;
-	 Offset offset=0;
-	 while ( din >> tname >> length ) {
-		 offsetMap_[tname] = offset;
-		 offset += length;
-}
-din.close();
-std::cerr << "done\n";
-std::cerr << "reading bias terms ... ";
-biases_.resize(numBiasTerms);
-std::ifstream bin(binName, std::ios::binary);
-bin.read( reinterpret_cast<char*>(&biases_.front()), sizeof(double)*numBiasTerms );
-bin.close();
-std::cerr << "done\n";
-}
-*/
-	/*
-	 i nline Indexer getBiases(* const std::string& tname ) {
-	 return haveBias_ ? Indexer( biases_.begin() + offsetMap_[tname] ) : Indexer(1.0);
-}
-*/
+
 	private:
 		bool haveBias_;
 		//std::vector<Bias> biases_;
